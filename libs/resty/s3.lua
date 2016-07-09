@@ -62,6 +62,7 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     return setmetatable({ auth=auth, host=host, aws_region=aws_region,timeout=timeout}, mt)
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 function _M:get(key)
     local short_uri = '/' .. proc_uri(key)
     local myheaders = util.new_headers()
@@ -93,6 +94,7 @@ function _M:get(key)
     return true, res.body
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 function _M:put(key, value, headers)
     local short_uri = '/' .. proc_uri(key)
     headers = headers or util.new_headers()
@@ -119,6 +121,7 @@ function _M:put(key, value, headers)
     return true, res.body
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 function _M:delete(key)
     local short_uri = '/' .. proc_uri(key)
     local myheaders = util.new_headers()
@@ -145,6 +148,7 @@ function _M:delete(key)
     return true, res.body
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html
 function _M:deletes(keys, quiet)
     if type(keys) ~= 'table' or #keys < 1 then
         ngx.log(ngx.ERR, "args [keys] invalid!")
@@ -191,6 +195,7 @@ function _M:deletes(keys, quiet)
     return true, doc
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
 function _M:list(prefix, delimiter, page_size, marker)
     prefix = prefix or ""
     prefix = proc_uri(prefix)
@@ -238,6 +243,7 @@ function _M:list(prefix, delimiter, page_size, marker)
     return true, doc
 end
 
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
 function _M:start_multi_upload(key)
     key = proc_uri(key)
     local url = "http://" .. self.host .. "/" .. key .. "?uploads"
