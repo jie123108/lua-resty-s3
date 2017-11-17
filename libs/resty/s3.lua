@@ -58,7 +58,11 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     end
 
     local auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, nil)
-    host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+    if aws_region == "us-east-1" then
+      host = aws_bucket .. ".s3.amazonaws.com"
+    else
+      host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+    end
     return setmetatable({ auth=auth, host=host, aws_region=aws_region,timeout=timeout}, mt)
 end
 
