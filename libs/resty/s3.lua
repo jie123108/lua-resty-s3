@@ -248,11 +248,11 @@ function _M:list(prefix, delimiter, page_size, marker)
 end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
-function _M:start_multi_upload(key)
+function _M:start_multi_upload(key, myheaders)
     key = proc_uri(key)
     local url = "http://" .. self.host .. "/" .. key .. "?uploads"
     
-    local myheaders = util.new_headers()
+    myheaders = myheaders or util.new_headers()
     local authorization = self.auth:authorization_v4("POST", url, myheaders, nil)
     ngx.log(ngx.INFO, "headers [", cjson.encode(myheaders), "]")
 
