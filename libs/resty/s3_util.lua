@@ -559,6 +559,10 @@ function http_req_3xx(method, uri, body, myheaders, timeout)
     return res, err, req_debug
 end
 
+function _M.http_head(uri, myheaders, timeout)
+    return http_req_3xx("HEAD", uri, nil, myheaders, timeout)
+end
+
 function _M.http_get(uri, myheaders, timeout)
     return http_req_3xx("GET", uri, nil, myheaders, timeout)
 end
