@@ -12,7 +12,7 @@ Implementation of the Amazon signature V4: http://docs.aws.amazon.com/zh_cn/Amaz
 you need to specify this library's path in ngx_lua's lua_package_path directive. For example:
 ```nginx
 http {
-   lua_package_path '/path/to/lua-resty-s3/libs/?.lua;;';
+   lua_package_path '/path/to/lua-resty-s3/lib/?.lua;;';
 }
 ```
 

@@ -1,5 +1,5 @@
-package.path = "/root/work/lua-resty-s3/?.lua;/root/work/lua-resty-s3/libs/?.lua;/usr/local/ngx_openresty/lualib/?.lua;;"
-package.cpath = "/root/work/lua-resty-s3/libs/?.so;/usr/local/ngx_openresty/lualib/?.so;;"
+package.path = "/root/work/lua-resty-s3/?.lua;/root/work/lua-resty-s3/lib/?.lua;/usr/local/ngx_openresty/lualib/?.lua;;"
+package.cpath = "/root/work/lua-resty-s3/lib/?.so;/usr/local/ngx_openresty/lualib/?.so;;"
 
 local cjson = require("cjson")
 local xml = require("xml.xml")
