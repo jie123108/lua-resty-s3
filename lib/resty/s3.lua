@@ -58,8 +58,42 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     end
 
     local auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, nil)
-    host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+    if aws_region == "us-east-1" then
+      host = aws_bucket .. ".s3.amazonaws.com"
+    else
+      host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+    end
     return setmetatable({ auth=auth, host=host, aws_region=aws_region,timeout=timeout}, mt)
+end
+
+-- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
+function _M:head(key)
+    local short_uri = '/' .. proc_uri(key)
+    local myheaders = util.new_headers()
+    local authorization = self.auth:authorization_v4("HEAD", short_uri, myheaders, nil)
+    --ngx.log(ngx.INFO, "headers [[[", cjson.encode(myheaders), "]]]")
+
+    -- TODO: check authorization.
+    local url = "http://" .. self.host .. util.uri_encode(short_uri, false)
+    local res, err, req_debug = util.http_head(url, myheaders, self.timeout)
+    if not res then
+        ngx.log(ngx.ERR, "fail request to aws s3 service: [", req_debug, "] err: ", err)
+        return false, "request to aws s3 failed", 500
+    end
+
+    ngx.log(ngx.INFO, "aws s3 request:", url, ", status:", res.status, ",body:", tostring(res.body))
+
+    if res.status ~= 200 then
+        if res.status == 404 then
+            ngx.log(ngx.INFO, "object [", key, "] not exist")
+            return false, "not-exist", res.status
+        else
+            ngx.log(ngx.ERR, "request [ ", req_debug,  " ] failed! status:", res.status, ", body:", tostring(res.body))
+            return false, res.body or "request to aws s3 failed", res.status
+        end
+    end
+
+    return true, res
 end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
@@ -244,11 +278,11 @@ function _M:list(prefix, delimiter, page_size, marker)
 end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
-function _M:start_multi_upload(key)
+function _M:start_multi_upload(key, myheaders)
     key = proc_uri(key)
     local url = "http://" .. self.host .. "/" .. key .. "?uploads"
-    
-    local myheaders = util.new_headers()
+
+    myheaders = myheaders or util.new_headers()
     local authorization = self.auth:authorization_v4("POST", url, myheaders, nil)
     ngx.log(ngx.INFO, "headers [", cjson.encode(myheaders), "]")
 

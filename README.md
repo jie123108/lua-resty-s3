@@ -33,6 +33,9 @@ local s3 = awss3:new(AWSAccessKeyId, AWSSecretAccessKey, aws_bucket, {timeout=10
 -- get a object. http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 local ok, response = s3:get(key)
 
+-- get a object. http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
+local ok, response = s3:head(key)
+
 -- put a object. http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 local ok, response = s3:put(key, value, headers)
 
