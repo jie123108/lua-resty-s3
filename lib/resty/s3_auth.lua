@@ -64,7 +64,7 @@ local function URI_ENCODE(arg, cd)
     return uri_encode(arg, false, cd)
 end
 
-function parse_args(args)
+local function parse_args(args)
     local kv_args = {}
     for arg in string.gmatch(args, "[^&]+") do
         local x = string.find(arg, "=")
@@ -120,7 +120,7 @@ end
 local function startswith(str,startstr)
    return startstr=='' or string.sub(str,1, string.len(startstr))==startstr
 end
-function endswith(str,endstr)
+local function endswith(str,endstr)
    return endstr=='' or string.sub(str,-string.len(endstr))==endstr
 end
 

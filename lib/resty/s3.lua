@@ -318,7 +318,7 @@ function _M:authorization_v4(method, url, headers)
     return self.auth:authorization_v4_internal(method, url, headers)
 end
 
-function get_bucket_location(s3auth, host, timeout)
+local function get_bucket_location(s3auth, host, timeout)
     local url = "http://" .. host .. "/?location"
 
     local myheaders = util.new_headers()

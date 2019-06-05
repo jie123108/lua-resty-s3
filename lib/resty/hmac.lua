@@ -62,6 +62,8 @@ typedef struct hmac_ctx_st
 
 void HMAC_CTX_init(HMAC_CTX *ctx);
 void HMAC_CTX_cleanup(HMAC_CTX *ctx);
+HMAC_CTX *HMAC_CTX_new(void);
+void HMAC_CTX_free(HMAC_CTX *ctx);
 
 int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,const EVP_MD *md, ENGINE *impl);
 int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
@@ -88,9 +90,11 @@ _M.ALGOS = hashes
 
 
 function _M.new(self, key, hash_algo)
-    local ctx = ffi_new(ctx_ptr_type)
-
-    C.HMAC_CTX_init(ctx)
+    local ctx = C.HMAC_CTX_new()
+    
+    if ctx == nil then
+        return nil
+    end
 
     local _hash_algo = hash_algo or hashes.md5
 
@@ -98,7 +102,7 @@ function _M.new(self, key, hash_algo)
         return nil
     end
 
-    ffi_gc(ctx, C.HMAC_CTX_cleanup)
+    ffi_gc(ctx, C.HMAC_CTX_free)
 
     return setmetatable({ _ctx = ctx }, mt)
 end
