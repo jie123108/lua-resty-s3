@@ -78,7 +78,6 @@ const EVP_MD *EVP_sha512(void);
 local buf = ffi_new("unsigned char[64]")
 local res_len = ffi_new("unsigned int[1]")
 local ctx_ptr_type = ffi.typeof("HMAC_CTX[1]")
-
 local hashes = {
     MD5 = C.EVP_md5(),
     SHA1 = C.EVP_sha1(),
