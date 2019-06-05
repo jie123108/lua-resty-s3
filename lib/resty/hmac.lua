@@ -73,8 +73,6 @@ const EVP_MD *EVP_md5(void);
 const EVP_MD *EVP_sha1(void);
 const EVP_MD *EVP_sha256(void);
 const EVP_MD *EVP_sha512(void);
-
-unsigned long OpenSSL_version_num();
 ]]
 
 local buf = ffi_new("unsigned char[64]")
@@ -93,11 +91,11 @@ _M.ALGOS = hashes
 
 
 function _M.new(self, key, hash_algo)
-    --local ctx = ffi_new(ctx_ptr_type)
     local ctx = C.HMAC_CTX_new()
     
-    --local version = C.OpenSSL_version_num();
-    -- ngx.say(tostring(version))
+    if ctx == nil then
+        return nil
+    end
 
     local _hash_algo = hash_algo or hashes.md5
 
