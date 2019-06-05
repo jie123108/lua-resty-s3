@@ -111,7 +111,7 @@ function _M:get(key)
         return false, "request to aws s3 failed", 500
     end
 
-    ngx.log(ngx.INFO, "aws s3 request:", url, ", status:", res.status, ",body:", tostring(res.body))
+    --ngx.log(ngx.INFO, "aws s3 request:", url, ", status:", res.status, ",body:", tostring(res.body))
 
     if res.status ~= 200 then
         if res.status == 404 then
@@ -123,7 +123,7 @@ function _M:get(key)
         end
     end
 
-    ngx.log(ngx.INFO, "aws returned: body:", res.body)
+    --ngx.log(ngx.INFO, "aws returned: body:", res.body)
 
     return true, res.body
 end
@@ -318,7 +318,7 @@ function _M:authorization_v4(method, url, headers)
     return self.auth:authorization_v4_internal(method, url, headers)
 end
 
-function get_bucket_location(s3auth, host, timeout)
+local function get_bucket_location(s3auth, host, timeout)
     local url = "http://" .. host .. "/?location"
 
     local myheaders = util.new_headers()

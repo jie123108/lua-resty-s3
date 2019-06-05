@@ -62,6 +62,8 @@ typedef struct hmac_ctx_st
 
 void HMAC_CTX_init(HMAC_CTX *ctx);
 void HMAC_CTX_cleanup(HMAC_CTX *ctx);
+HMAC_CTX *HMAC_CTX_new(void);
+void HMAC_CTX_free(HMAC_CTX *ctx);
 
 int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,const EVP_MD *md, ENGINE *impl);
 int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len);
@@ -71,11 +73,14 @@ const EVP_MD *EVP_md5(void);
 const EVP_MD *EVP_sha1(void);
 const EVP_MD *EVP_sha256(void);
 const EVP_MD *EVP_sha512(void);
+
+unsigned long OpenSSL_version_num();
 ]]
 
 local buf = ffi_new("unsigned char[64]")
 local res_len = ffi_new("unsigned int[1]")
 local ctx_ptr_type = ffi.typeof("HMAC_CTX[1]")
+
 local hashes = {
     MD5 = C.EVP_md5(),
     SHA1 = C.EVP_sha1(),
@@ -88,9 +93,11 @@ _M.ALGOS = hashes
 
 
 function _M.new(self, key, hash_algo)
-    local ctx = ffi_new(ctx_ptr_type)
-
-    C.HMAC_CTX_init(ctx)
+    --local ctx = ffi_new(ctx_ptr_type)
+    local ctx = C.HMAC_CTX_new()
+    
+    --local version = C.OpenSSL_version_num();
+    -- ngx.say(tostring(version))
 
     local _hash_algo = hash_algo or hashes.md5
 
@@ -98,7 +105,7 @@ function _M.new(self, key, hash_algo)
         return nil
     end
 
-    ffi_gc(ctx, C.HMAC_CTX_cleanup)
+    ffi_gc(ctx, C.HMAC_CTX_free)
 
     return setmetatable({ _ctx = ctx }, mt)
 end

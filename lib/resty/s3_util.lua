@@ -125,7 +125,7 @@ function _M.uri_encode(arg, encodeSlash, cd)
     return table.concat(chars)
 end
 
-function readresolv(filename)
+local function readresolv(filename)
     local rfile=io.open(filename, "r") --读取文件(r读取)
     if not rfile then
         return nil
@@ -501,7 +501,7 @@ end
 
 
 --支持302的请求
-function http_req_3xx(method, uri, body, myheaders, timeout)
+local function http_req_3xx(method, uri, body, myheaders, timeout)
     local req_uri = uri
     local err = ""
     local jump_times = 0
