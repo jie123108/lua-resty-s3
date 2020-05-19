@@ -1,4 +1,4 @@
-/lib/*.so
+*.so
 
 # OPM builds
 lua-resty-s3-*/*
