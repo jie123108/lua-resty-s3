@@ -1,5 +1,5 @@
 local cjson = require("cjson")
-local xml = require("xml.xml")
+local xml = require("resty.s3_xml")
 local cxml = require("cxml")
 local Bucket = "test-bucket"
 local Prefix = "/test/to/xml"
