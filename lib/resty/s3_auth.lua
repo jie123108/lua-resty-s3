@@ -1,5 +1,5 @@
 
-local sha2 = require "resty.sha2"
+local sha2 = require "resty.s3_sha2"
 local util = require "resty.s3_util"
 
 local NEW_LINE = "\n"
