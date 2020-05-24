@@ -31,7 +31,7 @@ local hmac_sha256 = util.hmac_sha256
 
 local mt = { __index = _M }
 
-function _M:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, datetime_cb)
+function _M:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, aws_service, datetime_cb)
     if not aws_access_key then
         return nil, "must provide aws_access_key"
     end
@@ -45,13 +45,16 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, datetime
     if not aws_region then
         aws_region = "ap-southeast-1"
     end
+    if not aws_service then
+        aws_service = "s3"
+    end
     if datetime_cb == nil then
         datetime_cb = get_datetime
     end
     local cd = nil
 
     return setmetatable({ aws_access_key = aws_access_key, aws_secret_key = aws_secret_key, 
-                        aws_bucket=aws_bucket, aws_region=aws_region, aws_service = "s3",
+                        aws_bucket=aws_bucket, aws_region=aws_region, aws_service = aws_service,
                         datetime_cb = datetime_cb}, mt)
 end
 
@@ -117,7 +120,7 @@ local function _query_string(args, cd)
     return table.concat(key_values, "&")
 end
 
-local function startswith(str,startstr)
+local function startswith(str, startstr)
    return startstr=='' or string.sub(str,1, string.len(startstr))==startstr
 end
 local function endswith(str,endstr)
@@ -173,17 +176,22 @@ local function trim (s)
     return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
 end
 
+local function replace_spaces(s)
+    return (string.gsub(s, "[ ]+", " "))
+end
+
 local function proc_headers(headers)
     local t = headers
     local headers_lower = {}
     local signed_headers = {}
     local header_values = {}
     local all_normal_headers = {host=true, ["content-type"]=true, ["content-md5"]=true, range=true, date=true}
-    for k,v in pairs(t) do 
+    for k,v in pairs(t) do
         k = string.lower(k)
         if type(v) == 'table' then
-            table.sort(v)
+            -- table.sort(v, function(a, b) return a < b end)
             v = table.concat(v, ",")
+            -- print("key: ", k, "----v:", v)
         end
         --ngx.log(ngx.INFO, "HEADER>", k, ":", v)
         --if all_normal_headers[k] or startswith(k, "x-amz-") then
@@ -194,7 +202,7 @@ local function proc_headers(headers)
     end
     table.sort(signed_headers)
     for _, k in ipairs(signed_headers) do 
-        table.insert(header_values, k .. ":" .. trim(headers_lower[k]) .. '\n')
+        table.insert(header_values, k .. ":" .. replace_spaces(trim(headers_lower[k])) .. '\n')
     end
     return table.concat(header_values), table.concat(signed_headers, ";")
 end
@@ -220,12 +228,19 @@ local function create_canonical_request(req)
 
     local header_str, signed_headers = proc_headers(req.headers)
     local hashed_payload = req.content_sha256
-    local requestStr =  req.method .. NEW_LINE .. 
-                        URI_ENCODE(uri, req.cd) .. NEW_LINE .. 
-                        _query_string(args, req.cd) .. NEW_LINE ..
-                         header_str .. NEW_LINE .. 
-                         signed_headers .. NEW_LINE .. 
-                         hashed_payload
+    local query_string = nil
+    if req.is_form_urlencoded then
+        query_string = _query_string(req.body, req.cd)
+    else
+        query_string = _query_string(args, req.cd)
+    end
+
+    local requestStr =  req.method .. NEW_LINE ..
+                        URI_ENCODE(uri, req.cd) .. NEW_LINE ..
+                        query_string .. NEW_LINE ..
+                        header_str .. NEW_LINE ..
+                        signed_headers .. NEW_LINE ..
+                        hashed_payload
     ngx.log(ngx.INFO, "Canonical Request[[[\n", requestStr, "\n]]]")
 
     return requestStr, signed_headers
@@ -264,9 +279,9 @@ local function calculate_sign(req, secret_access_key, aws_region, aws_service, d
     DateRegionServiceKey = HMAC-SHA256(<DateRegionKey>, "<aws-service>")
     SigningKey           = HMAC-SHA256(<DateRegionServiceKey>, "aws4_request")
     ]]
-   
+
     local date_key = hmac_sha256("AWS4" .. secret_access_key, date)
-    local date_region_key = hmac_sha256(date_key, aws_region) 
+    local date_region_key = hmac_sha256(date_key, aws_region)
     local signing_key = hmac_sha256(hmac_sha256(date_region_key, aws_service), "aws4_request")
     local string_to_sign, extinfo = create_string_to_sign(req, aws_region, aws_service, date, time)
     extinfo.string_to_sign = string_to_sign
@@ -274,22 +289,34 @@ local function calculate_sign(req, secret_access_key, aws_region, aws_service, d
 end
 
 -- 实现 http://docs.aws.amazon.com/zh_cn/AmazonS3/latest/API/sig-v4-header-based-auth.html 中的签名算法。
-function _M:sign_v4(method, url, headers, content_sha256, date, time)
+function _M:sign_v4(method, url, headers, body, date, time)
     -- headers["Host"] = self.aws_bucket .. ".s3.amazonaws.com"
+    local content_type = headers["content-type"]
+    local content_sha256 = headers["x-amz-content-sha256"]
+    local is_form_urlencoded = content_type ~= nil and startswith(content_type, "application/x-www-form-urlencoded")
+    if content_sha256 == nil then
+        if is_form_urlencoded then
+            content_sha256 = sha2.sha256("")
+        else
+            content_sha256 = sha2.sha256(body or "")
+        end
+    end
+
     local aws_service = self.aws_service
     if not headers["Host"] then
         headers["Host"] = self.aws_bucket .. ".s3.amazonaws.com"
     else
-        local host = headers.host
-        local idx = string.find(host, "%.")
-        if idx then
-            aws_service = string.sub(host, 1, idx-1)
+        if not aws_service then
+            local host = headers.host
+            local idx = string.find(host, "%.")
+            if idx then
+                aws_service = string.sub(host, 1, idx-1)
+            end
         end
-        ngx.log(ngx.INFO, "aws_service: ", aws_service)
     end
     url = uri2short(url)
 
-    local req = {method=method, url=url, headers=headers, content_sha256=content_sha256, cd=self.cd}
+    local req = {method=method, url=url, headers=headers, body=body, content_sha256=content_sha256, is_form_urlencoded=is_form_urlencoded, cd=self.cd}
     local signature, extinfo = calculate_sign(req, self.aws_secret_key, self.aws_region, aws_service, date, time)
     extinfo.url = url
     return signature, extinfo
@@ -304,11 +331,7 @@ function _M:authorization_v4(method, url, headers, body)
 end
 
 function _M:authorization_v4_4test(method, url, headers, body)
-    local date, time, datetime = self.datetime_cb()
-    local content_sha256 = sha2.sha256(body or "")
-    --headers["x-amz-content-sha256"] = content_sha256
-    --headers["x-amz-date"] = datetime
-    return _M.authorization_v4_internal(self, method, url, headers, content_sha256)
+    return _M.authorization_v4_internal(self, method, url, headers, body)
 end
 
 local function get_date_and_time_s3(datetime)
@@ -338,9 +361,8 @@ signature
 authorization
 url 最终请求的url(不包含域名端口部分)
 ]]
-function _M:authorization_v4_internal(method, url, headers, content_sha256)
+function _M:authorization_v4_internal(method, url, headers, body)
     --local datetime = date .. "T" .. time .. "Z"
-    local content_sha256 = headers["x-amz-content-sha256"] or content_sha256 or sha2.sha256("")
     local datetime = headers["x-amz-date"]
     local date, time = nil, nil
     if datetime then
@@ -363,7 +385,7 @@ function _M:authorization_v4_internal(method, url, headers, content_sha256)
             headers["x-amz-date"] = datetime
         -- end
     end
-    local signature, extinfo = _M.sign_v4(self, method, url, headers, content_sha256, date, time)
+    local signature, extinfo = _M.sign_v4(self, method, url, headers, body, date, time)
     local algorithm, scope, signed_headers = extinfo.algorithm, extinfo.scope, extinfo.signed_headers
 
     --[[
@@ -373,7 +395,7 @@ function _M:authorization_v4_internal(method, url, headers, content_sha256)
     ]]
     local authorization = string.format("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", 
                                     algorithm, self.aws_access_key, scope, signed_headers, signature)
-
+    -- ngx.log(ngx.ERR, "authorization: ", authorization)
     headers["Authorization"] = authorization
     extinfo.signature = signature
     extinfo.authorization = authorization

@@ -28,15 +28,15 @@ _M._VERSION = '0.01'
 
 local mt = { __index = _M }
 
-function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)    
+function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     if not aws_access_key then
         return nil, "must provide aws_access_key"
     end
     if not aws_secret_key then
         return nil, "must provide aws_secret_key"
     end
+    args = args or {}
 
-    local host = aws_bucket .. ".s3.amazonaws.com"
     local timeout = 5
     local aws_region = nil
     if args and type(args) == 'table' then
@@ -49,26 +49,42 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     end
 
     local err = nil
-    if not aws_region then
+    local host =  args.host or (aws_bucket .. ".s3.amazonaws.com")
+    if not args.host and not aws_region then
         aws_region,err = get_bucket_region(aws_access_key, aws_secret_key, aws_bucket, "us-east-1", host, timeout)
         if aws_region == nil or aws_region == "" then
             ngx.log(ngx.INFO, "get_bucket_region(", aws_bucket, ") failed! err:", tostring(err))
             aws_region = "us-east-1"
         end
     end
-
-    local auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, nil)
-    if aws_region == "us-east-1" then
-      host = aws_bucket .. ".s3.amazonaws.com"
-    else
-      host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+    local aws_service = "s3"
+    local auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, aws_service, nil)
+    if not args.host then
+        if aws_region == "us-east-1" then
+          host = aws_bucket .. ".s3.amazonaws.com"
+        else
+          host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
+        end
     end
-    return setmetatable({ auth=auth, host=host, aws_region=aws_region,timeout=timeout}, mt)
+    local add_bucket_to_uri = false
+    if not util.startswith(host, aws_bucket .. ".") then
+        add_bucket_to_uri = true
+    end
+
+    return setmetatable({ auth=auth, host=host, aws_bucket=aws_bucket, add_bucket_to_uri=add_bucket_to_uri, aws_region=aws_region,timeout=timeout}, mt)
+end
+
+function _M:get_short_uri(key)
+    local short_uri = '/' .. proc_uri(key)
+    if self.add_bucket_to_uri then
+        short_uri = '/' .. self.aws_bucket .. short_uri
+    end
+    return short_uri
 end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html
 function _M:head(key)
-    local short_uri = '/' .. proc_uri(key)
+    local short_uri = self:get_short_uri(key)
     local myheaders = util.new_headers()
     local authorization = self.auth:authorization_v4("HEAD", short_uri, myheaders, nil)
     --ngx.log(ngx.INFO, "headers [[[", cjson.encode(myheaders), "]]]")
@@ -98,7 +114,7 @@ end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 function _M:get(key)
-    local short_uri = '/' .. proc_uri(key)
+    local short_uri = self:get_short_uri(key)
     local myheaders = util.new_headers()
     local authorization = self.auth:authorization_v4("GET", short_uri, myheaders, nil)
     --ngx.log(ngx.INFO, "headers [[[", cjson.encode(myheaders), "]]]")
@@ -130,7 +146,7 @@ end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 function _M:put(key, value, headers)
-    local short_uri = '/' .. proc_uri(key)
+    local short_uri = self:get_short_uri(key)
     headers = headers or util.new_headers()
     local authorization = self.auth:authorization_v4("PUT", short_uri, headers, value)
 
@@ -157,9 +173,9 @@ end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 function _M:delete(key)
-    local short_uri = '/' .. proc_uri(key)
+    local short_uri = self:get_short_uri(key)
     local myheaders = util.new_headers()
-    local authorization = self.auth:authorization_v4("DELETE", short_uri, myheaders, value)
+    local authorization = self.auth:authorization_v4("DELETE", short_uri, myheaders, nil)
     --ngx.log(ngx.INFO, "headers [[[", cjson.encode(myheaders), "]]]")
 
     -- TODO: check authorization.
@@ -189,10 +205,13 @@ function _M:deletes(keys, quiet)
         return false, "args-invalid"
     end
     local url = "http://" .. self.host .. '/?delete'
+    if self.add_bucket_to_uri then
+        url = "http://" .. self.host .. '/' .. self.aws_bucket .. '?delete'
+    end
     local myheaders = util.new_headers()
     local Object = {}
     for _, key in ipairs(keys) do
-        table.insert(Object, {Key=proc_uri(key, self.cd)})
+        table.insert(Object, {Key=key})
     end
     if quiet == nil then
         quiet = true
@@ -232,7 +251,8 @@ end
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
 function _M:list(prefix, delimiter, page_size, marker)
     prefix = prefix or ""
-    prefix = proc_uri(prefix)
+    prefix = self:get_short_uri(prefix)
+
     local url = "http://" .. self.host .. "/?prefix=" .. prefix 
     if delimiter then
         url = url .. "&delimiter=" .. delimiter
@@ -279,8 +299,8 @@ end
 
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html
 function _M:start_multi_upload(key, myheaders)
-    key = proc_uri(key)
-    local url = "http://" .. self.host .. "/" .. key .. "?uploads"
+    local short_uri = self:get_short_uri(key)
+    local url = "http://" .. self.host .. short_uri .. "?uploads"
 
     myheaders = myheaders or util.new_headers()
     local authorization = self.auth:authorization_v4("POST", url, myheaders, nil)
@@ -323,9 +343,8 @@ local function get_bucket_location(s3auth, host, timeout)
 
     local myheaders = util.new_headers()
     local authorization = s3auth:authorization_v4("GET", url, myheaders, nil)
-    
+
     -- TODO: check authorization.
-    local res, err, req_debug = util.http_get(url, myheaders, timeout)
     if not res then
         ngx.log(ngx.ERR, "fail request to aws s3 service: [", req_debug, "] err: ", err)
         return false, "request to aws s3 failed", 500
@@ -350,7 +369,8 @@ end
 get_bucket_region = function(aws_access_key, aws_secret_key, aws_bucket, aws_region, host, timeout)
     for i = 1, 3 do
         --ngx.log(ngx.INFO, "-----", i, " get bucket region ...")
-        local s3auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, nil)
+        local aws_service = "s3"
+        local s3auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, aws_service, nil)
         local ok, doc, status = get_bucket_location(s3auth, host, timeout)
         if ok then
             if type(doc) == 'table' and doc.LocationConstraint then

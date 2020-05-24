@@ -1,9 +1,9 @@
 Name
 ====
 
-amazon s3 client for ngx_lua. 
+amazon s3 client for ngx_lua.
 
-Implementation of the Amazon signature V4: http://docs.aws.amazon.com/zh_cn/AmazonS3/latest/API/sig-v4-authenticating-requests.html. 
+Implementation of the Amazon signature V4: http://docs.aws.amazon.com/zh_cn/AmazonS3/latest/API/sig-v4-authenticating-requests.html.
 
 # Usage
 
@@ -18,7 +18,7 @@ http {
 
 you use require to load the library into a local Lua variable:
 ```lua
-local stats = require("resty.s3")
+local awss3 = require("resty.s3")
 ```
 
 ### Methods
@@ -54,15 +54,64 @@ local authorization, signature, extinfo = s3:authorization_v4(method, url, heade
 ```
 
 # depends
+
 * [ledgetech/lua-resty-http](https://github.com/ledgetech/lua-resty-http)
 * [jkeys089/lua-resty-hmac >= 0.01](https://github.com/jkeys089/lua-resty-hmac) 
 
-# test dependencies
+# test
+
+### install test dependencies
+
 * [iresty/lua-resty-test >= 0.01](https://github.com/iresty/lua-resty-test)
 
-# s3相关：
-* 测试集：http://docs.aws.amazon.com/zh_cn/general/latest/gr/signature-v4-test-suite.html
-* s3 rest api: http://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html
+```
+opm get jie123108/lua-resty-test
+```
+
+### run the signature-v4-test-suite
+
+```
+cd path/to/lua-resty-s3
+resty -I lib test/aws-sig-v4-test-suite.lua
+```
+
+* test suite：[http://docs.aws.amazon.com/zh_cn/general/latest/gr/signature-v4-test-suite.html(The link is dead.)](http://docs.aws.amazon.com/zh_cn/general/latest/gr/signature-v4-test-suite.html)
+
+### Run the signature examples on the AWS website.
+
+[Signature Examples On AWS Website](https://docs.aws.amazon.com/zh_cn/AmazonS3/latest/API/sig-v4-header-based-auth.html)
+
+```
+resty -I lib test/test-s3-sign-examples.lua
+```
+
+
+### Run s3 tests
+
+Please modify the s3-related configuration in test-s3.lua or use the `minio` environment (S3 API compatible) to test. 
+
+##### Using docker to run minio:
+
+* 1. Startup minio container
+
+```
+docker run -d -it --name s3 -p 9000:9000 \
+-e MINIO_ACCESS_KEY=THE_ACCESS_KEY_ID \
+-e MINIO_SECRET_KEY=THE_SECRET_ACCESS_KEY \
+minio/minio server /data/minio_data
+```
+
+* 2. Access the minio console: http://127.0.0.1:9000/minio/
+  * Access Key: THE_ACCESS_KEY_ID
+  * Secret Key: THE_SECRET_ACCESS_KEY
+* 3. Add a storage bucket named `def' in the control
+  * Once logged in, click the `+` button in the lower right corner and click the `Create bucket` in the pop-up menu.
+
+##### Run Tests:
+
+```
+resty -I lib test/test-s3.lua
+```
 
 # Licence
 
