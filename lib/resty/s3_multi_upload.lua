@@ -1,6 +1,6 @@
 local util = require "resty.s3_util"
 local cjson = require "cjson"
-local xml = require "xml.xml"
+local xml = require "resty.s3_xml"
 
 local _M = {}
 _M._VERSION = '0.01'

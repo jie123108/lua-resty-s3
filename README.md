@@ -54,9 +54,11 @@ local authorization, signature, extinfo = s3:authorization_v4(method, url, heade
 ```
 
 # depends
-* https://github.com/jie123108/lua-resty-http
-* https://github.com/jkeys089/lua-resty-hmac
-* https://github.com/membphis/lua-resty-test
+* [ledgetech/lua-resty-http](https://github.com/ledgetech/lua-resty-http)
+* [jkeys089/lua-resty-hmac >= 0.01](https://github.com/jkeys089/lua-resty-hmac) 
+
+# test dependencies
+* [iresty/lua-resty-test >= 0.01](https://github.com/iresty/lua-resty-test)
 
 # s3相关：
 * 测试集：http://docs.aws.amazon.com/zh_cn/general/latest/gr/signature-v4-test-suite.html

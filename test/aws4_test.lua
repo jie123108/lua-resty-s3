@@ -1,6 +1,6 @@
 local awss3auth = require "resty.s3_auth"
 local cjson = require "cjson"
-local xml = require "xml.xml"
+local xml = require "resty.s3_xml"
 local util = require "resty.s3_util"
 local tb    = require "resty.iresty_test"
 local test = tb.new({unit_name="amazon_s3_test"})

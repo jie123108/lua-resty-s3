@@ -1,4 +1,4 @@
-local slaxdom = require 'xml.slaxdom' -- https://github.com/Phrogz/SLAXML
+local slaxdom = require 'slaxdom' -- https://github.com/Phrogz/SLAXML
 local cjson = require "cjson"
 
 local XML = {}
