@@ -24,7 +24,7 @@ end
 local get_bucket_region = nil
 
 local _M = new_tab(0, 100)
-_M._VERSION = '0.02'
+_M._VERSION = '0.03'
 
 local mt = { __index = _M }
 
