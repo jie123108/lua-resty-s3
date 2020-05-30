@@ -457,9 +457,9 @@ local function http_req(method, uri, body, myheaders, timeout)
     local cost = ngx.now()-begin
     if not res then
         ngx.log(ngx.ERR, "FAIL REQUEST [ ",req_debug, " ] err:", err, ", cost:", cost)
-    elseif res.status >= 400 then
+    elseif res.status >= 400 and res.status ~= 404 then
         ngx.log(ngx.ERR, "FAIL REQUEST [ ",req_debug, " ] status:", res.status, ", const:", cost)
-    else 
+    else
         ngx.log(ngx.INFO, "REQUEST [ ",req_debug, " ] status:", res.status, ", const:", cost)
     end
     return res, err, req_debug

@@ -88,7 +88,7 @@ resty -I lib test/test-s3-sign-examples.lua
 
 ### Run s3 tests
 
-Please modify the s3-related configuration in test-s3.lua or use the `minio` environment (S3 API compatible) to test. 
+#### Testing with Minio
 
 ##### Using docker to run minio:
 
@@ -104,13 +104,19 @@ minio/minio server /data/minio_data
 * 2. Access the minio console: http://127.0.0.1:9000/minio/
   * Access Key: THE_ACCESS_KEY_ID
   * Secret Key: THE_SECRET_ACCESS_KEY
-* 3. Add a storage bucket named `def' in the control
+* 3. Add a storage bucket named `def' in the console
   * Once logged in, click the `+` button in the lower right corner and click the `Create bucket` in the pop-up menu.
 
 ##### Run Tests:
 
-```
+```shell
 resty -I lib test/test-s3.lua
+```
+
+#### Testing with aws s3
+
+```shell
+S3_CONFIG="S3_ACCESS_ID:S3_ACCESS_SECERT_KEY:s3_bucket_name:s3_region" resty -I lib test/test-s3.lua
 ```
 
 # Licence

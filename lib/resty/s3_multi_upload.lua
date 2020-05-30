@@ -10,15 +10,18 @@ local mt = { __index = _M }
 --[[
 startResult is a table that return by start multi upload.
 "Bucket":"the-bucket","Key":"the/file/path","UploadId":"the-upload-id"}
-
 ]]
 
 function _M:new(auth, host, timeout, startResult)
-	local bucket = startResult.Bucket 
-	local key = startResult.Key 
-	local upload_id = startResult.UploadId 
-
-    return setmetatable({ auth=auth, bucket=bucket, key=key, upload_id = upload_id, host=host, timeout=timeout, parts={}}, mt)
+	local bucket = startResult.Bucket
+	local key = startResult.Key
+    local upload_id = startResult.UploadId
+    local add_bucket_to_uri = false
+    if not util.endswith(host, ".amazonaws.com") then
+        add_bucket_to_uri = true
+        key = bucket .. "/" .. key
+    end
+    return setmetatable({ auth=auth, bucket=bucket, key=key, upload_id = upload_id, host=host, add_bucket_to_uri=add_bucket_to_uri, timeout=timeout, parts={}}, mt)
 end
 
 function _M:upload(part_number, value)

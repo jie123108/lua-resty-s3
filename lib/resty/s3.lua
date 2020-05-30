@@ -24,7 +24,7 @@ end
 local get_bucket_region = nil
 
 local _M = new_tab(0, 100)
-_M._VERSION = '0.01'
+_M._VERSION = '0.02'
 
 local mt = { __index = _M }
 
@@ -38,7 +38,7 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     args = args or {}
 
     local timeout = 5
-    local aws_region = nil
+    local aws_region = "us-east-1"
     if args and type(args) == 'table' then
         if args.timeout then
             timeout = args.timeout
@@ -48,26 +48,16 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
         end
     end
 
-    local err = nil
     local host =  args.host or (aws_bucket .. ".s3.amazonaws.com")
-    if not args.host and not aws_region then
-        aws_region,err = get_bucket_region(aws_access_key, aws_secret_key, aws_bucket, "us-east-1", host, timeout)
-        if aws_region == nil or aws_region == "" then
-            ngx.log(ngx.INFO, "get_bucket_region(", aws_bucket, ") failed! err:", tostring(err))
-            aws_region = "us-east-1"
-        end
-    end
     local aws_service = "s3"
     local auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, aws_service, nil)
     if not args.host then
-        if aws_region == "us-east-1" then
-          host = aws_bucket .. ".s3.amazonaws.com"
-        else
+        if aws_region ~= "us-east-1" then
           host = aws_bucket .. ".s3" .. "-" .. aws_region .. ".amazonaws.com"
         end
     end
     local add_bucket_to_uri = false
-    if not util.startswith(host, aws_bucket .. ".") then
+    if not util.endswith(host, ".amazonaws.com") then
         add_bucket_to_uri = true
     end
 
@@ -251,18 +241,22 @@ end
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
 function _M:list(prefix, delimiter, page_size, marker)
     prefix = prefix or ""
-    prefix = self:get_short_uri(prefix)
+    local args = {prefix=prefix}
 
-    local url = "http://" .. self.host .. "/?prefix=" .. prefix 
+    local url = "http://" .. self.host .. "/"
+    if self.add_bucket_to_uri then
+        url = url .. self.aws_bucket
+    end
     if delimiter then
-        url = url .. "&delimiter=" .. delimiter
+        args.delimiter = delimiter
     end
     if page_size then
-        url = url .. "&max-keys=" .. tostring(tonumber(page_size))
+        args["max-keys"] = tostring(tonumber(page_size))
     end
     if marker then
-        url = url .. "&marker=" .. tostring(marker)
+        args.marker =  tostring(marker)
     end
+    url = url .. "?" .. ngx.encode_args(args)
 
     local myheaders = util.new_headers()
     local authorization = self.auth:authorization_v4("GET", url, myheaders, nil)
@@ -287,13 +281,14 @@ function _M:list(prefix, delimiter, page_size, marker)
         end
     end
 
-
     ngx.log(ngx.INFO, "aws returned: body:", res.body)
     local doc, err = xml.loads(res.body)
     if doc == nil then
         return false, "xml-invalid", 500
     end
-
+    if doc.ListBucketResult == nil then
+       return false, "no-list-result", 500
+    end
     return true, doc
 end
 
@@ -336,61 +331,6 @@ end
 
 function _M:authorization_v4(method, url, headers)
     return self.auth:authorization_v4_internal(method, url, headers)
-end
-
-local function get_bucket_location(s3auth, host, timeout)
-    local url = "http://" .. host .. "/?location"
-
-    local myheaders = util.new_headers()
-    local authorization = s3auth:authorization_v4("GET", url, myheaders, nil)
-
-    -- TODO: check authorization.
-    if not res then
-        ngx.log(ngx.ERR, "fail request to aws s3 service: [", req_debug, "] err: ", err)
-        return false, "request to aws s3 failed", 500
-    end
-
-    ngx.log(ngx.INFO, "aws s3 request:", url, ", status:", res.status, ",body:", tostring(res.body))
-
-    if res.status ~= 200 then
-        ngx.log(ngx.ERR, "request [ ", req_debug,  " ] failed! status:", res.status, ", body:", tostring(res.body))
-        return false, res.body or "request to aws s3 failed", res.status
-    end
-
-    ngx.log(ngx.INFO, "aws returned: body:", res.body)
-    local doc, err = xml.loads(res.body)
-    if doc == nil then
-        return false, "xml-invalid", 500
-    end
-
-    return true, doc
-end
-
-get_bucket_region = function(aws_access_key, aws_secret_key, aws_bucket, aws_region, host, timeout)
-    for i = 1, 3 do
-        --ngx.log(ngx.INFO, "-----", i, " get bucket region ...")
-        local aws_service = "s3"
-        local s3auth = s3_auth:new(aws_access_key, aws_secret_key, aws_bucket, aws_region, aws_service, nil)
-        local ok, doc, status = get_bucket_location(s3auth, host, timeout)
-        if ok then
-            if type(doc) == 'table' and doc.LocationConstraint then
-                aws_region = doc.LocationConstraint
-                return aws_region
-            else
-                ngx.log(ngx.ERR, "get bucket(", aws_bucket, ") region failed! resp body invalid:", cjson.encode(doc))
-            end
-        else
-            local body = doc
-            doc = xml.loads(body)
-            if status == 400 and type(doc) == 'table' and doc.Error and doc.Error.Region then
-                ngx.log(ngx.INFO, "the ok resion is: ", doc.Error.Region)
-                return doc.Error.Region
-            else
-                ngx.log(ngx.ERR, "get bucket(", aws_bucket, ") region failed! err:", body)
-                return nil, body
-            end
-        end
-    end
 end
 
 return _M
