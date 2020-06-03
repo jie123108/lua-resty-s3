@@ -161,6 +161,14 @@ function _M:put(key, value, headers)
     return true, res.body
 end
 
+-- https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
+function _M:copy(key, source, headers)
+    headers = headers or util.new_headers()
+    headers["x-amz-copy-source"] = source
+
+    return self:put(key, "", headers)
+end
+
 -- http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 function _M:delete(key)
     local short_uri = self:get_short_uri(key)
