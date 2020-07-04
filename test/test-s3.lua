@@ -150,6 +150,48 @@ function tb:test_04delete()
     self.log("DELETE OK")
 end
 
+function tb:test_05copy()
+    local filename = self.filenames[1]
+    local content = self.contents[1]
+    local ok, resp = self.s3:put(filename, content)
+
+    for i = 2, #self.filenames do
+        local new_filename = self.filenames[i]
+
+        if string.sub(filename, 1, 1) ~= "/" then
+            filename = "/" .. filename
+        end
+
+        local ok, resp = self.s3:copy(new_filename, aws_bucket .. filename)
+        if not ok then
+            error("copy [" .. filename .. "] to [" .. new_filename .. "] failed! resp:" .. tostring(resp))
+        end
+        filename = new_filename
+    end
+
+    local dels = {}
+    local content_ok = self.contents[1]
+    for i = 1, #self.filenames do
+        local filename = self.filenames[i]
+        table.insert(dels, filename)
+
+        local ok, content = self.s3:get(filename)
+        if not ok then
+            error("get [" .. filename .. "] content failed! resp:" .. tostring(content))
+        end
+        if content_ok ~= content then
+            error("file [" .. filename .."] content [" .. content .."] ~= ok_content [" .. content_ok .."]")
+        end
+    end
+
+    local ok, err = self.s3:deletes(dels)
+    if not ok then
+        error("deletes [" .. table.concat(dels, ",") .. "] failed! resp:" .. tostring(err))
+    end
+
+    self.log("COPY OK")
+end
+
 function tb:test_20multi_upload()
 	local key = "path/to/a/bigfile"
 	local myheaders = util.new_headers()

@@ -48,6 +48,9 @@ local ok, response = s3:deletes(keys, quiet)
 -- list files. http://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
 local ok, files = s3:list(prefix, delimiter, page_size, marker)
 
+-- copy files.  https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
+local ok, response = s3:copy(key, source, headers)
+
 -- -- signature-v4. http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 local authorization, signature, extinfo = s3:authorization_v4(method, url, headers)
 
