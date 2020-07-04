@@ -37,7 +37,7 @@ function _M:new(aws_access_key, aws_secret_key, aws_bucket, args)
     end
     args = args or {}
 
-    local timeout = 5
+    local timeout = 10 * 1000
     local aws_region = "us-east-1"
     if args and type(args) == 'table' then
         if args.timeout then
@@ -164,7 +164,7 @@ end
 -- https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 function _M:copy(key, source, headers)
     headers = headers or util.new_headers()
-    headers["x-amz-copy-source"] = source
+    headers["x-amz-copy-source"] = ngx.escape_uri(source)
 
     return self:put(key, "", headers)
 end

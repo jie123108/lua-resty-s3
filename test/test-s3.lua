@@ -23,7 +23,7 @@ if s3_config then
 end
 
 function tb:init()
-	self.s3 = awss3:new(AWSAccessKeyId, AWSSecretAccessKey, aws_bucket, {timeout=1000*10, aws_region=aws_region, host=host})
+	self.s3 = awss3:new(AWSAccessKeyId, AWSSecretAccessKey, aws_bucket, {timeout=1000*30, aws_region=aws_region, host=host})
 	self.filenames = {"/testdir/standard.txt","/testdir/我的文件.txt", "testdir/no_first_slash.txt", "blankfile", "中文文件名.doc", "中文目录/中文.doc"}
 	self.contents = {"standard standard", "我的文件", "no_first_slash no_first_slash", "", "中文文件 中文文件", "中文目录里面的文件"}
 end
@@ -220,7 +220,7 @@ function tb:test_20multi_upload()
 	print("Downloading file " .. key .. " now, as the file is large, please be patient...")
 	local ok, content = self.s3:get(key)
 	if not ok then
-		error("get content of [", key, "] failed!, err:", content)
+		error("get content of [" .. key .. "] failed!, err:" .. content)
 	end
 	if #content ~= filesize then
 		error("There may be a problem with the upload or download process, the file size should be " .. tostring(filesize) .. ", but it is actually " .. tostring(#content))
