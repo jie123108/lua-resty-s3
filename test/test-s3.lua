@@ -32,7 +32,9 @@ function tb:test_01put()
 	for i =1,#self.filenames do
 		local filename = self.filenames[i]
 		local content = self.contents[i]
-		local ok, resp = self.s3:put(filename, content)
+		local headers = util.new_headers()
+		headers['Content-Type']= 'text/plain'
+		local ok, resp = self.s3:put(filename, content, headers)
 		if not ok then
 			error("save [" .. content .. "] to [" .. filename .. "] failed! resp:" .. tostring(resp))
 		end
