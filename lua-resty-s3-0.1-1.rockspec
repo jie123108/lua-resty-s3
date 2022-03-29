@@ -1,7 +1,7 @@
 package = "lua-resty-s3"
 version = "0.1-1"
 source = {
-   url = "git+https://github.com/OnlyPiglet/lua-resty-s3.git"
+   url = "git+https://github.com/jie123108¡/lua-resty-s3.git"
 }
 description = {
    summary = "amazon s3 client for ngx_lua.",
